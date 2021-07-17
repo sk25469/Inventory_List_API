@@ -1,5 +1,5 @@
 from os import name
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, Path, Query, HTTPException, status
 from typing import Optional
 from pydantic import BaseModel
 
@@ -38,7 +38,8 @@ def get_item_by_name(*, name: Optional[str] = None, test: int):
     for item_id in inventory:
         if inventory[item_id]["name"] == name:
             return inventory[item_id]
-    return {"Data": "Not found"}
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Data not found")
 
 
 # To have query as well as path parameters
@@ -50,14 +51,16 @@ def get_item_by_name_and_id(*, item_id: int = Path(None, description="This will 
     for item_id in inventory:
         if inventory[item_id].name == name:
             return inventory[item_id]
-    return {"Data": "Not found"}
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Data not found")
 
 
 # Now we will create an item and add it to the API
 @app.post("/create-item/{item_id}")
 def create_item(item_id: int, item: Item):
     if item_id in inventory:
-        return {"Erro": "Item ID already exists"}
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Item ID already exists")
 
     inventory[item_id] = item
     return inventory[item_id]
@@ -72,7 +75,8 @@ def create_item(item_id: int, item: Item):
 @app.put("/update-item/{item_id}")
 def update_item(item_id: int, item: UpdateItem):
     if item_id not in inventory:
-        return {"Error": "Item ID does not exists"}
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Item ID doesnot exist")
 
     if item.name != None:
         inventory[item_id].name = item.name
@@ -84,3 +88,12 @@ def update_item(item_id: int, item: UpdateItem):
         inventory[item_id].name = item.brand
 
     return inventory[item_id]
+
+
+# To delete an item with a specific id
+@app.delete("/delete-item/{item_id}")
+def delete_by_id(item_id: int = Query(..., description="The id of the item you want to delete", gt=0)):
+    if item_id not in inventory:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Item ID doesnot exist")
+    del inventory[item_id]
